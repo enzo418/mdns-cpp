@@ -19,6 +19,20 @@ main() {
 	auto res_darknet = darknet_service.start();
 	auto res_webserver = my_weberver_service.start();
 
+	if (res_darknet.wait_for(std::chrono::seconds(1)) == std::future_status::ready) {
+		printf("Service dakrnet failed to start: code=%d, error=%s\n", res_darknet.get(),
+		       strerror(errno));
+
+		return 1;
+	}
+
+	if (res_webserver.wait_for(std::chrono::seconds(1)) == std::future_status::ready) {
+		printf("Service webserver failed to start: code=%d, error=%s\n", res_webserver.get(),
+		       strerror(errno));
+
+		return -1;
+	}
+
 	// serve for 3 seconds and send "Goodbye" packet
 	// std::this_thread::sleep_for(std::chrono::seconds(10));
 
