@@ -1,11 +1,21 @@
 cmake_minimum_required(VERSION 3.0)
-project(mdns VERSION 1.4.2 LANGUAGES C)
+project(mdns VERSION 1.4.2 LANGUAGES C CXX)
 
 option(MDNS_BUILD_EXAMPLE "build example" ON)
+
+option(MDNS_DISABLE_LOGGING "disable logging" OFF)
+
+#clangd
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+set(CMAKE_CXX_STANDARD 17)
 
 # Set the output of the libraries and executables.
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+
+# either mdns.cpp or mdns.c
+set(SOURCE_FILE mdns.cpp)
 
 # ##############################################################################
 # library
@@ -13,23 +23,47 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
 include(GNUInstallDirs)
 
-add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME} ${SOURCE_FILE})
+
 target_include_directories(
-  ${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-                            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
+                         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
 if(WIN32)
-  target_link_libraries(${PROJECT_NAME} INTERFACE iphlpapi ws2_32)
+  target_link_libraries(${PROJECT_NAME} PUBLIC iphlpapi ws2_32)
 endif()
+
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME} INTERFACE c_std_99)
+
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+
+if(MDNS_DISABLE_LOGGING)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC MDNS_DISABLE_LOGGING)
+endif()
 
 # ##############################################################################
 # example
 # ##############################################################################
 
 if(MDNS_BUILD_EXAMPLE)
-  add_executable(${PROJECT_NAME}_example mdns.c)
-  target_link_libraries(${PROJECT_NAME}_example ${PROJECT_NAME})
+  add_executable(example_client example_client.cpp)
+  target_link_libraries(example_client ${PROJECT_NAME})
+  
+  add_executable(example_serve example_serve.cpp)
+  target_link_libraries(example_serve ${PROJECT_NAME})
+
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(example_client PRIVATE -fsanitize=address)
+    target_link_options(example_client PRIVATE -fsanitize=address)
+    
+    target_compile_options(example_serve PRIVATE -fsanitize=address)
+    target_link_options(example_serve PRIVATE -fsanitize=address)
+  endif()
+
+  if(MDNS_DISABLE_LOGGING)
+    target_compile_definitions(example_client INTERFACE MDNS_DISABLE_LOGGING)
+    target_compile_definitions(example_serve INTERFACE MDNS_DISABLE_LOGGING)    
+  endif()
 endif()
 
 # ##############################################################################
@@ -72,4 +106,4 @@ install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
               "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/${PROJECT_NAME})
 
-install(FILES "${PROJECT_SOURCE_DIR}/mdns.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES "${PROJECT_SOURCE_DIR}/mdns.hpp" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
