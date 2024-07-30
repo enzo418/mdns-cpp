@@ -58,7 +58,7 @@
 #include <netinet/in.h>
 #endif
 
-#include "MoveOnlyFunction.h"
+#include "__ofats_any_invocable.h"
 
 #define MDNS_INVALID_POS ((size_t)-1)
 
