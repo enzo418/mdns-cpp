@@ -1273,7 +1273,7 @@ get_host_name() {
 
 struct GoodbyeListenerData {
 	std::string service_instance_string;
-	MoveOnlyFunction<void()> on_goodbye;
+	OfatsInvocable<void()> on_goodbye;
 };
 
 static int
@@ -1336,7 +1336,7 @@ check_goodbye_cb(int sock, const struct sockaddr* from, size_t addrlen, mdns_ent
 
 static int
 listen_for_goodbye(const std::string& goodbye_service_instance_string,
-                   MoveOnlyFunction<void()>&& on_goodbye) {
+                   OfatsInvocable<void()>&& on_goodbye) {
 	int sockets[32];
 	int num_sockets = open_client_sockets(sockets, sizeof(sockets) / sizeof(sockets[0]), 5353);
 	if (num_sockets <= 0) {
@@ -1451,20 +1451,20 @@ MDNSClient::~MDNSClient() {
 int
 MDNSClient::sendQuery(
     int timeout_seconds, std::atomic<bool>& stop_flag,
-    MoveOnlyFunction<void(std::string_view from_addr, std::string_view service_name,
-                          std::string_view instance_service_name)>&& onPTR,
-    MoveOnlyFunction<void(std::string_view from_addr, uint16_t priority, uint16_t weight,
-                          uint16_t port, std::string_view host_name,
-                          std::string_view service_name)>&& onSRV,
-    MoveOnlyFunction<void(std::string_view from_addr, std::string_view host_name,
-                          struct sockaddr_in addr, std::string_view addr_str)>&& onA,
-    MoveOnlyFunction<void(std::string_view from_addr, std::string_view host_name,
-                          struct sockaddr_in6 addr, std::string_view addr_str)>&& onAAAA,
-    MoveOnlyFunction<void(std::string_view from_addr, std::string_view instance_service_name,
-                          const std::unordered_map<std::string, std::string>& txtRecords)>&& onTXT,
-    MoveOnlyFunction<void(std::string_view from_addr, const char* entry_type,
-                          std::string_view entry_str, size_t record_length, uint16_t rtype,
-                          uint16_t rclass, uint32_t ttl)>&& onUnknown) {
+    OfatsInvocable<void(std::string_view from_addr, std::string_view service_name,
+                        std::string_view instance_service_name)>&& onPTR,
+    OfatsInvocable<void(std::string_view from_addr, uint16_t priority, uint16_t weight,
+                        uint16_t port, std::string_view host_name, std::string_view service_name)>&&
+        onSRV,
+    OfatsInvocable<void(std::string_view from_addr, std::string_view host_name,
+                        struct sockaddr_in addr, std::string_view addr_str)>&& onA,
+    OfatsInvocable<void(std::string_view from_addr, std::string_view host_name,
+                        struct sockaddr_in6 addr, std::string_view addr_str)>&& onAAAA,
+    OfatsInvocable<void(std::string_view from_addr, std::string_view instance_service_name,
+                        const std::unordered_map<std::string, std::string>& txtRecords)>&& onTXT,
+    OfatsInvocable<void(std::string_view from_addr, const char* entry_type,
+                        std::string_view entry_str, size_t record_length, uint16_t rtype,
+                        uint16_t rclass, uint32_t ttl)>&& onUnknown) {
 	QueryCallbacks callbacks = {std::move(onPTR),  std::move(onSRV), std::move(onA),
 	                            std::move(onAAAA), std::move(onTXT), std::move(onUnknown)};
 
@@ -1680,7 +1680,7 @@ MDNSClient::findService(int timeout_seconds, bool wait_for_txt, bool wait_for_bo
 }
 
 void
-MDNSClient::listenGoodbye(MoveOnlyFunction<void()>&& on_goodbye) {
+MDNSClient::listenGoodbye(OfatsInvocable<void()>&& on_goodbye) {
 	if (running_listen_goodbye) {
 		std::cerr << "Goodbye listener is already running" << std::endl;
 		return;
@@ -1692,7 +1692,7 @@ MDNSClient::listenGoodbye(MoveOnlyFunction<void()>&& on_goodbye) {
 
 void
 MDNSClient::listenForGoodbye(const std::string& service_instance_string,
-                             MoveOnlyFunction<void()>&& on_goodbye) {
+                             OfatsInvocable<void()>&& on_goodbye) {
 	goodbye_service_instance_string_ = service_instance_string;
 	listenGoodbye(std::move(on_goodbye));
 }

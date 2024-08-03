@@ -366,7 +366,7 @@ __OFATS_ANY_INVOCABLE(const, &&, true, const&&)   // 121
 
 namespace mdns {
 template <class T>
-using MoveOnlyFunction = ofats__::any_invocable<T>;
+using OfatsInvocable = ofats__::any_invocable<T>;
 }
 
 #endif  // _ANY_INVOKABLE_H_

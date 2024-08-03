@@ -108,5 +108,5 @@ install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
 
 install(FILES 
         "${PROJECT_SOURCE_DIR}/mdns.hpp" 
-        "${PROJECT_SOURCE_DIR}/__ofats_any_invocable.h" 
+        "${PROJECT_SOURCE_DIR}/OfatsInvocable.h" 
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

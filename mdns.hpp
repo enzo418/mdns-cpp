@@ -58,7 +58,7 @@
 #include <netinet/in.h>
 #endif
 
-#include "__ofats_any_invocable.h"
+#include "OfatsInvocable.h"
 
 #define MDNS_INVALID_POS ((size_t)-1)
 
@@ -1716,24 +1716,24 @@ MDNSCPP_queryCallback(int sock, const struct sockaddr* from, size_t addrlen,
                       void* user_data);
 
 struct QueryCallbacks {
-	MoveOnlyFunction<void(std::string_view from_addr, std::string_view service_name,
-	                      std::string_view instance_service_name)>
+	OfatsInvocable<void(std::string_view from_addr, std::string_view service_name,
+	                    std::string_view instance_service_name)>
 	    onPTR;
-	MoveOnlyFunction<void(std::string_view from_addr, uint16_t priority, uint16_t weight,
-	                      uint16_t port, std::string_view host_name, std::string_view service_name)>
+	OfatsInvocable<void(std::string_view from_addr, uint16_t priority, uint16_t weight,
+	                    uint16_t port, std::string_view host_name, std::string_view service_name)>
 	    onSRV;
-	MoveOnlyFunction<void(std::string_view from_addr, std::string_view host_name,
-	                      struct sockaddr_in addr, std::string_view addr_str)>
+	OfatsInvocable<void(std::string_view from_addr, std::string_view host_name,
+	                    struct sockaddr_in addr, std::string_view addr_str)>
 	    onA;
-	MoveOnlyFunction<void(std::string_view from_addr, std::string_view host_name,
-	                      struct sockaddr_in6 addr, std::string_view addr_str)>
+	OfatsInvocable<void(std::string_view from_addr, std::string_view host_name,
+	                    struct sockaddr_in6 addr, std::string_view addr_str)>
 	    onAAAA;
-	MoveOnlyFunction<void(std::string_view from_addr, std::string_view instance_service_name,
-	                      const std::unordered_map<std::string, std::string>& txtRecords)>
+	OfatsInvocable<void(std::string_view from_addr, std::string_view instance_service_name,
+	                    const std::unordered_map<std::string, std::string>& txtRecords)>
 	    onTXT;
-	MoveOnlyFunction<void(std::string_view from_addr, const char* entry_type,
-	                      std::string_view entry_str, size_t record_length, uint16_t rtype,
-	                      uint16_t rclass, uint32_t ttl)>
+	OfatsInvocable<void(std::string_view from_addr, const char* entry_type,
+	                    std::string_view entry_str, size_t record_length, uint16_t rtype,
+	                    uint16_t rclass, uint32_t ttl)>
 	    onUnknown;
 };
 
@@ -1769,26 +1769,26 @@ class MDNSClient {
 	// blocking until timeout_seconds
 	int sendQuery(
 	    int timeout_seconds, std::atomic<bool>& stop_flag,
-	    MoveOnlyFunction<void(std::string_view from_addr, std::string_view service_name,
-	                          std::string_view instance_service_name)>&& onPTR,
-	    MoveOnlyFunction<void(std::string_view from_addr, uint16_t priority, uint16_t weight,
-	                          uint16_t port, std::string_view host_name,
-	                          std::string_view service_name)>&& onSRV,
-	    MoveOnlyFunction<void(std::string_view from_addr, std::string_view host_name,
-	                          struct sockaddr_in addr, std::string_view addr_str)>&& onA,
-	    MoveOnlyFunction<void(std::string_view from_addr, std::string_view host_name,
-	                          struct sockaddr_in6 addr, std::string_view addr_str)>&& onAAAA,
-	    MoveOnlyFunction<void(std::string_view from_addr, std::string_view instance_service_name,
-	                          const std::unordered_map<std::string, std::string>& txtRecords)>&&
+	    OfatsInvocable<void(std::string_view from_addr, std::string_view service_name,
+	                        std::string_view instance_service_name)>&& onPTR,
+	    OfatsInvocable<void(std::string_view from_addr, uint16_t priority, uint16_t weight,
+	                        uint16_t port, std::string_view host_name,
+	                        std::string_view service_name)>&& onSRV,
+	    OfatsInvocable<void(std::string_view from_addr, std::string_view host_name,
+	                        struct sockaddr_in addr, std::string_view addr_str)>&& onA,
+	    OfatsInvocable<void(std::string_view from_addr, std::string_view host_name,
+	                        struct sockaddr_in6 addr, std::string_view addr_str)>&& onAAAA,
+	    OfatsInvocable<void(std::string_view from_addr, std::string_view instance_service_name,
+	                        const std::unordered_map<std::string, std::string>& txtRecords)>&&
 	        onTXT,
-	    MoveOnlyFunction<void(std::string_view from_addr, const char* entry_type,
-	                          std::string_view entry_str, size_t record_length, uint16_t rtype,
-	                          uint16_t rclass, uint32_t ttl)>&& onUnknown);
+	    OfatsInvocable<void(std::string_view from_addr, const char* entry_type,
+	                        std::string_view entry_str, size_t record_length, uint16_t rtype,
+	                        uint16_t rclass, uint32_t ttl)>&& onUnknown);
 
 	// non-blocking
-	void listenGoodbye(MoveOnlyFunction<void()>&& on_goodbye);
+	void listenGoodbye(OfatsInvocable<void()>&& on_goodbye);
 	void listenForGoodbye(const std::string& service_instance_string,
-	                      MoveOnlyFunction<void()>&& on_goodbye);
+	                      OfatsInvocable<void()>&& on_goodbye);
 	void stopGoodbyeListener();
 
    private:
