@@ -24,8 +24,8 @@ SOFTWARE.
 
 /* Sources fetched from https://github.com/ofats/any_invocable on 2021-02-19. */
 
-#ifndef _ANY_INVOKABLE_H_
-#define _ANY_INVOKABLE_H_
+#ifndef IFC_ANY_INVOKABLE_H_
+#define IFC_ANY_INVOKABLE_H_
 
 #include <functional>
 #include <memory>
@@ -369,4 +369,4 @@ template <class T>
 using OfatsInvocable = ofats__::any_invocable<T>;
 }
 
-#endif  // _ANY_INVOKABLE_H_
+#endif  // IFC_ANY_INVOKABLE_H_
