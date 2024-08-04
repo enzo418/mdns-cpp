@@ -58,6 +58,9 @@ if(MDNS_BUILD_EXAMPLE)
     
     target_compile_options(example_serve PRIVATE -fsanitize=address)
     target_link_options(example_serve PRIVATE -fsanitize=address)
+	
+    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
+    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
   endif()
 
   if(MDNS_DISABLE_LOGGING)

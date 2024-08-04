@@ -41,21 +41,19 @@
 #include <optional>
 
 #include <cstring>
-#ifdef WIN32
-#include <Windows.h>
-#include <tchar.h>
-#else
-#include <unistd.h>
-#endif
 
 #ifdef _WIN32
 #include <Winsock2.h>
 #include <Ws2tcpip.h>
+#include <Windows.h>
+#include <tchar.h>
 #define strncasecmp _strnicmp
+#define _CRT_SECURE_NO_WARNINGS 1
 #else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #endif
 
 #include "OfatsInvocable.h"
@@ -440,8 +438,15 @@ mdns_htonl(void* data, uint32_t val) {
 static inline int
 mdns_socket_open_ipv4(const struct sockaddr_in* saddr) {
 	int sock = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock < 0)
+	if (sock < 0) {
+#ifdef _WIN32
+		int error_code = WSAGetLastError();
+		std::cerr << "Failed to open socket. Error code: " << error_code << std::endl;
+#else
+		perror("Failed to open socket");
+#endif
 		return -1;
+	}
 	if (mdns_socket_setup_ipv4(sock, saddr)) {
 		mdns_socket_close(sock);
 		return -1;

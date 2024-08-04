@@ -10,9 +10,7 @@
 #include "vector"
 
 #include "mdns.hpp"
-#ifdef _WIN32
-#define _CRT_SECURE_NO_WARNINGS 1
-#endif
+
 
 #include <stdio.h>
 
@@ -1023,22 +1021,22 @@ service_mdns(std::atomic_bool& stop_flag, const char* hostname, const char* serv
 	size_t capacity = 2048;
 	void* buffer = malloc(capacity);
 
-	mdns_string_t service_string = (mdns_string_t){service_name, strlen(service_name)};
-	mdns_string_t hostname_string = (mdns_string_t){hostname, strlen(hostname)};
+	mdns_string_t service_string = mdns_string_t{service_name, strlen(service_name)};
+	mdns_string_t hostname_string = mdns_string_t{hostname, strlen(hostname)};
 
 	// Build the service instance "<hostname>.<_service-name>._tcp.local." string
 	char service_instance_buffer[256] = {0};
 	snprintf(service_instance_buffer, sizeof(service_instance_buffer) - 1, "%.*s.%.*s",
 	         MDNS_STRING_FORMAT(hostname_string), MDNS_STRING_FORMAT(service_string));
 	mdns_string_t service_instance_string =
-	    (mdns_string_t){service_instance_buffer, strlen(service_instance_buffer)};
+	    mdns_string_t{service_instance_buffer, strlen(service_instance_buffer)};
 
 	// Build the "<hostname>.local." string
 	char qualified_hostname_buffer[256] = {0};
 	snprintf(qualified_hostname_buffer, sizeof(qualified_hostname_buffer) - 1, "%.*s.local.",
 	         MDNS_STRING_FORMAT(hostname_string));
 	mdns_string_t hostname_qualified_string =
-	    (mdns_string_t){qualified_hostname_buffer, strlen(qualified_hostname_buffer)};
+	    mdns_string_t{qualified_hostname_buffer, strlen(qualified_hostname_buffer)};
 
 	service_t service = {0};
 	service.service = service_string;
@@ -1257,10 +1255,10 @@ get_host_name() {
 	DWORD bufCharCount = 150;
 	if (GetComputerName(infoBuf, &bufCharCount)) {
 		for (int i = 0; i < 150; i++) {
-			Name[i] = infoBuf[i];
+			name[i] = infoBuf[i];
 		}
 	} else {
-		std::strcpy(Name, "Unknown_Host_Name");
+		std::strcpy(name, "Unknown_Host_Name");
 	}
 #else
 	if (gethostname(name, sizeof(name)) != 0) {
@@ -1398,15 +1396,33 @@ listen_for_goodbye(const std::string& goodbye_service_instance_string,
 /* ------------------------------------------------------ */
 /*                         SERVICE                        */
 /* ------------------------------------------------------ */
+#ifdef _WIN32
+bool
+initialize_winsock() {
+	WSADATA wsaData;
+	int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (result != 0) {
+		std::cerr << "WSAStartup failed with error: " << result << std::endl;
+		return false;
+	}
+	return true;
+}
+#endif
 
 MDNSService::MDNSService(const std::string& hostname, const std::string& serviceName,
                          int servicePort, std::map<const char*, const char*> txtRecords)
     : hostname_(hostname), serviceName_(serviceName), servicePort_(servicePort),
       txtRecords_(txtRecords), stop_flag_(false) {
+#ifdef _WIN32
+initialize_winsock();
+#endif
 }
 
 MDNSService::~MDNSService() {
 	stop();
+#ifdef _WIN32
+WSACleanup();
+#endif
 }
 
 std::future<int>
@@ -1442,10 +1458,16 @@ MDNSService::runService() {
 
 MDNSClient::MDNSClient(const std::string& service_name)
     : service_name_(service_name), goodbye_service_instance_string_(service_name) {
+#ifdef _WIN32
+	initialize_winsock();
+#endif
 }
 
 MDNSClient::~MDNSClient() {
 	stopGoodbyeListener();
+#ifdef _WIN32
+WSACleanup();
+#endif
 }
 
 int
@@ -1789,7 +1811,7 @@ fuzz_mdns(void) {
 BOOL
 console_handler(DWORD signal) {
 	if (signal == CTRL_C_EVENT) {
-		running = 0;
+		mdns::running_service = 0;
 	}
 	return TRUE;
 }
