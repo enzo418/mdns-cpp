@@ -57,6 +57,7 @@
 #endif
 
 #include "OfatsInvocable.h"
+#include <regex>
 
 #define MDNS_INVALID_POS ((size_t)-1)
 
@@ -1677,6 +1678,20 @@ get_host_name();
 #ifdef _WIN32
 #undef strncasecmp
 #endif
+
+struct mdns_configuration_t {
+	bool parsed = false;
+
+	// Interface address to bind to when listening/sending for multicast packets
+	// in the service mode.
+	// If set to 0, INADDR_ANY (0.0.0.0) will be used.
+	// NOTE: This doesn't mean the A record will have this address
+	std::optional<std::string> service_multicast_ipv4_address;
+
+	// Interfaces to ignore basde on its name or description
+	// e.g. "(Hyper-V(.*))|(VirtualBox(.*))"
+	std::optional<std::regex> ignore_interface_regex;
+};
 
 class MDNSService {
    public:

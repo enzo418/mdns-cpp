@@ -7,6 +7,12 @@
 #include <thread>
 #include <cstdarg>
 
+#include <fstream>
+
+#include <locale>
+#include <codecvt>
+#include <string>
+
 #include "vector"
 
 #include "mdns.hpp"
@@ -29,6 +35,7 @@
 #endif
 
 #include <iostream>
+#include <cassert>
 
 // Alias some things to simulate recieving data to fuzz library
 #if defined(MDNS_FUZZING)
@@ -57,6 +64,8 @@ static int has_ipv6;
 volatile sig_atomic_t running_service = 0;
 volatile sig_atomic_t running_dump = 0;
 volatile sig_atomic_t running_listen_goodbye = 0;
+
+static struct mdns_configuration_t mdns_config;
 
 /* ------------------------------------------------------ */
 /*                         Logger                         */
@@ -593,6 +602,12 @@ dump_callback(int sock, const struct sockaddr* from, size_t addrlen, mdns_entry_
 	return 0;
 }
 
+std::string
+convert_wchar_to_string(PWCHAR wstr) {
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+	return converter.to_bytes(wstr);
+}
+
 // Open sockets for sending one-shot multicast queries from an ephemeral port
 static int
 open_client_sockets(int* sockets, int max_sockets, int port) {
@@ -632,6 +647,17 @@ open_client_sockets(int* sockets, int max_sockets, int port) {
 			continue;
 		if (adapter->OperStatus != IfOperStatusUp)
 			continue;
+		// check if adapter->AdapterName or adapter->Description matches the regex mdns_config.ignore_interface
+		if (mdns_config.ignore_interface_regex.has_value()) {
+			auto& rr = mdns_config.ignore_interface_regex.value();
+			std::string name = convert_wchar_to_string(adapter->FriendlyName);
+			std::string desc = convert_wchar_to_string(adapter->Description);
+
+			if (std::regex_match(name, rr) || std::regex_match(desc, rr)) {
+				MDNS_printf("Ignoring interface with name '%s' description '%s'\n", name.c_str(), desc.c_str());
+				continue;
+			}
+		}
 
 		for (IP_ADAPTER_UNICAST_ADDRESS* unicast = adapter->FirstUnicastAddress; unicast;
 		     unicast = unicast->Next) {
@@ -812,8 +838,19 @@ open_service_sockets(int* sockets, int max_sockets) {
 		struct sockaddr_in sock_addr;
 		memset(&sock_addr, 0, sizeof(struct sockaddr_in));
 		sock_addr.sin_family = AF_INET;
+		
 #ifdef _WIN32
-		sock_addr.sin_addr = in4addr_any;
+		if (mdns_config.service_multicast_ipv4_address.has_value()) {
+			auto interface_ip =
+			    mdns_config.service_multicast_ipv4_address.value();
+			struct in_addr local_interface;
+			local_interface.s_addr = inet_addr(interface_ip.data());
+			sock_addr.sin_addr = local_interface;
+
+			MDNS_printf("Service listening multicast only on interface %s\n", interface_ip.data());
+		} else {
+			sock_addr.sin_addr = in4addr_any;
+		}
 #else
 		sock_addr.sin_addr.s_addr = INADDR_ANY;
 #endif
@@ -1409,10 +1446,49 @@ initialize_winsock() {
 }
 #endif
 
+void
+parse_configuration() {
+	if (mdns_config.parsed)
+		return;
+
+	mdns_config.parsed = true;
+
+	const char* default_filename = "mdns_config.cfg";
+	const char* filename = std::getenv("MDNS_CONFIG_FILE");
+	if (!filename) {
+		filename = default_filename;
+	}
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		std::cerr << "Failed to open config file: " << filename << std::endl;
+		return;
+	}
+	std::string line;
+	while (std::getline(file, line)) {
+		std::istringstream iss(line);
+		std::string key;
+		if (std::getline(iss, key, '=')) {
+			std::string value;
+			if (std::getline(iss, value)) {
+				if (key == "service_multicast_ipv4_address" && !value.empty()) {
+					mdns_config.service_multicast_ipv4_address = value;
+					MDNS_printf("[cfg] Service multicast IPv4 address: %s\n",
+								mdns_config.service_multicast_ipv4_address.value().c_str());
+				} else if (key == "ignore_interface_regex" && !value.empty()) {
+					mdns_config.ignore_interface_regex = std::regex(value);
+					MDNS_printf("[cfg] Ignore interface regex: %s\n", value.c_str());
+				}
+			}
+		}
+	}
+
+}
+
 MDNSService::MDNSService(const std::string& hostname, const std::string& serviceName,
                          int servicePort, std::map<const char*, const char*> txtRecords)
     : hostname_(hostname), serviceName_(serviceName), servicePort_(servicePort),
       txtRecords_(txtRecords), stop_flag_(false) {
+	parse_configuration();
 #ifdef _WIN32
 initialize_winsock();
 #endif
@@ -1458,6 +1534,7 @@ MDNSService::runService() {
 
 MDNSClient::MDNSClient(const std::string& service_name)
     : service_name_(service_name), goodbye_service_instance_string_(service_name) {
+	parse_configuration();
 #ifdef _WIN32
 	initialize_winsock();
 #endif
